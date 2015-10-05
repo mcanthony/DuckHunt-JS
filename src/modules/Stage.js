@@ -1,17 +1,18 @@
-const PIXI = require('pixi.js');
-const BPromise = require('bluebird');
-const Howler = require('howler');
-const audioSpriteSheet = require('../../dist/audio.json');
-const sound = new Howl(audioSpriteSheet);
-Howler.Howler.mute();
-const Utils = require('../libs/utils');
-const TWEEN = require('tween.js');
-
+import PIXI from 'pixi.js';
+import BPromise from 'bluebird';
+import Howler from 'howler';
+import TWEEN from'tween.js';
+import audioSpriteSheet from '../../dist/audio.json';
+import Utils from '../libs/utils';
 import Duck from './Duck';
 import Dog from './Dog';
+import Hud from './Hud';
 
-const DEFAULT_WIDTH = 800;
-const DEFAULT_HEIGHT = 600;
+const sound = new Howl(audioSpriteSheet);
+const MAX_X = 800;
+const MAX_Y = 600;
+
+Howler.Howler.mute();
 
 class Stage extends PIXI.Container {
 
@@ -20,15 +21,24 @@ class Stage extends PIXI.Container {
     this.spritesheet = opts.sprites;
     this.interactive = true;
     this.ducks = [];
+    this.duckOrigin = new PIXI.Point(MAX_X / 2, MAX_Y);
     this.dog = new Dog(this.spritesheet);
     this.dog.visible = false;
+
+    this.scoreBoxLocation = new PIXI.Point(MAX_X - 45, 20);
+    this.waveStatusBoxLocation = new PIXI.Point(60, MAX_Y * 0.97 - 10);
+    this.gameStatusBoxLocation = new PIXI.Point(MAX_X / 2, MAX_Y * 0.45);
 
     this._setStage();
     this.scaleToWindow();
   }
 
+  getCenterPoint() {
+    return new PIXI.Point(MAX_X / 2, MAX_Y);
+  }
+
   scaleToWindow() {
-    this.scale.set(window.innerWidth / DEFAULT_WIDTH, window.innerHeight / DEFAULT_HEIGHT);
+    this.scale.set(window.innerWidth / MAX_X, window.innerHeight / MAX_Y);
   }
 
   _setStage() {
@@ -41,6 +51,7 @@ class Stage extends PIXI.Container {
     this.addChild(tree);
     this.addChild(background);
     this.addChild(this.dog);
+
     return this;
   }
 
@@ -52,15 +63,18 @@ class Stage extends PIXI.Container {
   addDucks(numDucks, speed) {
     for (let i = 0; i < numDucks; i++) {
       let duckColor = i % 2 === 0 ? 'red' : 'black';
-      let newDuck = new Duck(duckColor, this.spritesheet); // Al was here.
-      newDuck.setPosition(this.getWidth() / 2, this.getHeight());
+
+      // Al was here.
+      let newDuck = new Duck(duckColor, this.spritesheet);
+      newDuck.position.set(this.duckOrigin.x, this.duckOrigin.y);
+      this.addChildAt(newDuck, 0);
+      newDuck.freeFlight({
+        speed: speed,
+        maxX: MAX_X,
+        maxY: MAX_Y
+      });
 
       this.ducks.push(newDuck);
-      newDuck.play();
-      this.addChildAt(newDuck, 0);
-      newDuck.fly({
-        speed: speed
-      });
     }
   }
 
@@ -71,7 +85,7 @@ class Stage extends PIXI.Container {
     let killed = 0;
     for (let i = 0; i < this.ducks.length; i++) {
       let duck = this.ducks[i];
-      if (duck.alive && Utils.pointDistance(duck.getCenterPoint(), clickPoint) < 60) {
+      if (duck.alive && Utils.pointDistance(duck.position, clickPoint) < 60) {
         killed++;
         duck.shot();
         this.dog.retrieve();
@@ -80,12 +94,12 @@ class Stage extends PIXI.Container {
     return killed;
   }
 
-  getWidth() {
-    return DEFAULT_WIDTH;
+  getMaxX() {
+    return MAX_X;
   }
 
-  getHeight() {
-    return DEFAULT_HEIGHT;
+  getMaxY() {
+    return MAX_Y;
   }
 
   flyAway() {
@@ -93,18 +107,18 @@ class Stage extends PIXI.Container {
     while (this.ducks.length > 0) {
       let duck = this.ducks.pop();
       if (duck.alive) {
-        duck.flyAway();
+        duck.stop();
+        duck.flyTo({
+          x: MAX_X / 2,
+          y: -500
+        });
       }
     }
   }
 
   cleanUpDucks() {
-    let childCount = this.children.length;
-    for (let i = 0; i < childCount; i++) {
-      let child = this.children[i];
-      if (child instanceof Duck) {
-        this.removeChild(child);
-      }
+    for (let i = 0; i < this.ducks.length; i++) {
+      this.removeChild(this.ducks[i]);
     }
   }
 

@@ -1,21 +1,14 @@
-const PIXI = require('pixi.js');
-const TWEEN = require('tween.js');
-const _noop = require('lodash/utility/noop');
-const levels = require('../data/levels.json');
-
-const DEFAULT_BACKGROUND_COLOR = 0x64b0ff;
-
+import PIXI from 'pixi.js';
+import TWEEN from 'tween.js';
+import _noop from 'lodash/utility/noop';
+import levels from '../data/levels.json';
 import Stage from './Stage';
 import Duck from './Duck';
 import Dog from './Dog';
 import Hud from './Hud';
 
-const STATUS_TEXT_STYLE = {
-  font: '40px Arial',
-  align: 'left',
-  fill: 'white'
-};
-
+const BLUE_SKY_COLOR = 0x64b0ff;
+const PINK_SKY_COLOR = 0xfbb4d4;
 const SUCCESS_RATIO = 0.6;
 
 class Game {
@@ -23,7 +16,7 @@ class Game {
     this.spritesheet = opts.spritesheet;
     this.loader = PIXI.loader;
     this.renderer =  PIXI.autoDetectRenderer(window.innerWidth, window.innerHeight, {
-      backgroundColor: DEFAULT_BACKGROUND_COLOR
+      backgroundColor: BLUE_SKY_COLOR
     });
     this.levelIndex = 0;
 
@@ -32,6 +25,19 @@ class Game {
     this.levels = levels.normal;
     this.score = 0;
     return this;
+  }
+
+  get wave() {
+    return this.waveNum;
+  }
+
+  set wave(val) {
+    this.waveNum = val;
+    if (!isNaN(val) && val > 0) {
+      this.hud.waveStatus = 'Wave ' + val + ' of ' + this.level.waves;
+    } else {
+      this.hud.waveStatus = '';
+    }
   }
 
   load() {
@@ -47,16 +53,37 @@ class Game {
       sprites: this.spritesheet
     });
 
-    this.hud = new Hud();
-
-    this.stage.addChild(this.hud);
+    this.setupHud();
+    this.bindEvents();
     this.scaleToWindow();
-
-    //bind events
-    window.addEventListener('resize', this.scaleToWindow.bind(this));
-
     this.startLevel();
     this.animate();
+  }
+
+  setupHud() {
+    this.hud = this.stage.addChild(new Hud());
+
+    this.hud.createTextBox('score', {
+      font: '18px Arial',
+      align: 'center',
+      fill: 'white'
+    }, this.stage.scoreBoxLocation);
+
+    this.hud.createTextBox('waveStatus', {
+      font: '18px Arial',
+      align: 'left',
+      fill: 'white'
+    }, this.stage.waveStatusBoxLocation);
+
+    this.hud.createTextBox('gameStatus', {
+      font: '40px Arial',
+      align: 'left',
+      fill: 'white'
+    }, this.stage.gameStatusBoxLocation);
+  }
+
+  bindEvents() {
+    window.addEventListener('resize', this.scaleToWindow.bind(this));
   }
 
   scaleToWindow() {
@@ -69,20 +96,18 @@ class Game {
 
     this.level = this.levels[this.levelIndex];
     this.ducksShotThisLevel = 0;
-
-    this.hud.setGameStatus(this.level.title);
     this.wave = 0;
 
+    this.hud.gameStatus = this.level.title;
     this.stage.preLevelAnimation().then(function() {
-      _this.hud.clearGameStatus();
+      _this.hud.gameStatus = '';
       _this.stage.mousedown = _this.stage.touchstart = _this.handleClick.bind(_this);
       _this.startWave();
     });
   }
 
   startWave() {
-    this.wave++;
-    this.hud.setWaveStatus('Wave ' + this.wave + ' of ' + this.level.waves);
+    this.wave += 1;
     this.waveStartTime = Date.now();
     this.shotsFired = 0;
     this.waveEnding = false;
@@ -96,7 +121,7 @@ class Game {
   }
 
   goToNextWave() {
-    this.resetBackgroundColor();
+    this.renderer.backgroundColor = BLUE_SKY_COLOR;
     if (this.level.waves === this.wave) {
       this.endLevel();
     } else {
@@ -104,16 +129,24 @@ class Game {
     }
   }
 
-  isWaveTimeUp() {
-    return this.waveElapsedTime() >= this.level.time;
-  }
-
   shouldWaveEnd() {
     return (this.isWaveTimeUp() || this.outOfAmmo() || !this.stage.ducksAlive()) && !this.waveEnding;
   }
 
+  isWaveTimeUp() {
+    return this.waveElapsedTime() >= this.level.time;
+  }
+
+  waveElapsedTime() {
+    return (Date.now() - this.waveStartTime) / 1000;
+  }
+
+  outOfAmmo() {
+    return this.shotsFired >= this.level.bullets;
+  }
+
   endLevel() {
-    this.hud.clearWaveStatus('');
+    this.wave = null;
     this.stage.mousedown = this.stage.touchstart = _noop;
     this.goToNextLevel();
   }
@@ -134,14 +167,12 @@ class Game {
   }
 
   win() {
-    this.hud.clearWaveStatus();
-    this.hud.setGameStatus('You Win!');
+    this.hud.gameStatus = 'You Win!';
     this.stage.victoryScreen();
   }
 
   loss() {
-    this.hud.clearWaveStatus();
-    this.hud.setGameStatus('You Lose!');
+    this.hud.gameStatus = 'You Lose!';
     this.stage.loserScreen();
   }
 
@@ -155,29 +186,15 @@ class Game {
     }
   }
 
-  outOfAmmo() {
-    return this.shotsFired >= this.level.bullets;
-  }
-
-  waveElapsedTime() {
-    return (Date.now() - this.waveStartTime) / 1000;
-  }
-
-  resetBackgroundColor() {
-    this.renderer.backgroundColor = DEFAULT_BACKGROUND_COLOR; // light blue
-  }
-
   updateScore(ducksShot) {
     this.ducksShotThisLevel += ducksShot;
     this.score += ducksShot * this.level.pointsPerDuck;
-    this.hud.setScore(this.score);
+    this.hud.score = this.score;
   }
 
   animate(time) {
-    // render the stage container
     this.renderer.render(this.stage);
     TWEEN.update(time);
-
 
     if (!this.stage.isActive() && !this.waveOver) {
       this.waveOver = true;
@@ -185,13 +202,12 @@ class Game {
     } else if (this.shouldWaveEnd()) {
       this.waveEnding = true;
       if (this.stage.ducksAlive()) {
+        this.renderer.backgroundColor = PINK_SKY_COLOR;
         this.stage.flyAway();
-        this.renderer.backgroundColor = 0xfbb4d4;
       }
     }
 
     requestAnimationFrame(this.animate.bind(this));
-
   }
 }
 

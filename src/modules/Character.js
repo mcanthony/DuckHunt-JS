@@ -5,17 +5,17 @@ const _result = require('lodash/object/result');
 
 class Character extends PIXI.extras.MovieClip {
 
-  constructor(assetKey, resourceKey, states) {
-    let gameTextures = PIXI.loader.resources[resourceKey].textures;
+  constructor(spriteId, spritesheet, states) {
+    let gameTextures = PIXI.loader.resources[spritesheet].textures;
     for (let textureKey in gameTextures) {
-      if (!gameTextures.hasOwnProperty(textureKey) || textureKey.indexOf(assetKey) === -1) {
+      if (!gameTextures.hasOwnProperty(textureKey) || textureKey.indexOf(spriteId) === -1) {
         continue;
       }
 
       let parts = textureKey.split('/');
       parts.length -= 1; //truncate to remove media file
 
-      let state = parts.join('/').replace(assetKey + '/', '');
+      let state = parts.join('/').replace(spriteId + '/', '');
 
       // Only add textures if the state is supported by the class
       let stateObj = _find(states, {name: state});
@@ -35,7 +35,6 @@ class Character extends PIXI.extras.MovieClip {
       }
     }
 
-    // Give the MovieClip a default state
     super(states[0].textures);
     this.states = states;
     this.animationSpeed = this.states[0].animationSpeed;

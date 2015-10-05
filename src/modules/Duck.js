@@ -1,19 +1,21 @@
-const TWEEN = require('tween.js');
-const Howler = require('howler');
-const audioSpriteSheet = require('../../dist/audio.json');
-const sound = new Howl(audioSpriteSheet);
-const _random = require('lodash/number/random');
-const _extend = require('lodash/object/assign');
-const Utils = require('../libs/utils');
-
+import TWEEN from 'tween.js';
+import Howler from 'howler';
+import audioSpriteSheet from '../../dist/audio.json';
+import _random from 'lodash/number/random';
+import _extend from 'lodash/object/assign';
+import Utils from '../libs/utils';
 import Character from './Character';
 
+const sound = new Howl(audioSpriteSheet);
+const DEATH_ANIMATION_SPEED = 600;
+
 class Duck extends Character {
-  constructor(color, resourceKey) {
+  constructor(color, spritesheet) {
+    let spriteId = 'duck/' + color;
     let states = [
       {
         name: 'left',
-        animationSpeed: 0.1
+        animationSpeed: 0.18
 
       },
       {
@@ -42,25 +44,20 @@ class Duck extends Character {
 
       }
     ];
-
-    let resourceId = 'duck/' + color;
-    super(resourceId, resourceKey, states);
+    super(spriteId, spritesheet, states);
     this.alive = true;
+    this.anchor.set(0.5, 0.5);
   }
 
-  fly(opts) {
-    let _this = this;
-
+  freeFlight(opts) {
     let options = _extend({
       minX: 0,
-      maxX: this.parent.getWidth() - this.width,
+      maxX: Infinity,
       minY: 0,
-      maxY: this.parent.getHeight() - this.height,
+      maxY: Infinity,
       minDistance: 300,
-      speed: this.flightSpeed
+      speed: 1
     }, opts);
-
-    this.setFlightSpeed(options.speed);
 
     let distance, destination;
     do {
@@ -68,45 +65,33 @@ class Duck extends Character {
         x: _random(options.minX, options.maxX),
         y: _random(options.minY, options.maxY)
       };
-      distance = Utils.pointDistance(this.getCenterPoint(), destination);
+      distance = Utils.pointDistance(this.position, destination);
     } while (distance < options.minDistance);
 
-
-    let direction = Utils.directionOfTravel(this.getCenterPoint(), destination);
-
-    // we don't have bottom-X animations
-    this.setState(direction.replace('bottom', 'top'));
-    this.tween = new TWEEN.Tween(this.position)
-      .to(destination, this.flightSpeed + _random(0, 300))
-      .onUpdate(function() {
-        _this.setPosition(parseInt(this.x), parseInt(this.y));
-      })
-      .onComplete(function() {
-        if (_this.alive) {
-          _this.fly(options);
-        }
-      })
-      .start();
+    this.play();
+    let _this = this;
+    this.flyTo(destination, options.speed).onComplete(function() {
+      if (_this.alive) {
+        _this.freeFlight(options);
+      }
+    });
   }
 
-  flyAway() {
-    let _this = this;
-    this.tween.stop();
-    let destination = {
-      x: this.parent.getWidth() / 2 + this.width / 2,
-      y: -500
-    };
+  flyTo(point, speed) {
+    if (speed) {
+      this.speed = speed;
+    }
 
-    let direction = Utils.directionOfTravel(this.getCenterPoint(), destination);
-
-    // we don't have bottom-X animations
+    let direction = Utils.directionOfTravel(this.position, point);
     this.setState(direction.replace('bottom', 'top'));
+    let _this = this;
     this.tween = new TWEEN.Tween(this.position)
-      .to(destination, 800)
+      .to(point, this.flightSpeed + _random(0, 300))
       .onUpdate(function() {
         _this.setPosition(parseInt(this.x), parseInt(this.y));
       })
-    .start();
+      .start();
+    return this.tween;
   }
 
   shot() {
@@ -114,17 +99,17 @@ class Duck extends Character {
       return;
     }
     this.alive = false;
-    this.tween.stop();
+    this.stop();
     this.setState('shot');
     sound.play('quak');
 
     let _this = this;
     this.tween = new TWEEN.Tween({y: this.position.y })
-      .to({y: this.parent.getHeight() }, 600)
+      .to({y: this.parent.getMaxY() }, DEATH_ANIMATION_SPEED)
       .delay(450)
       .onStart(this.setState.bind(this, 'dead'))
       .onUpdate(function() {
-        _this.setPosition(_this.position.x, this.y);
+        _this.position.y = this.y;
       })
       .onComplete(function() {
         sound.play('thud');
@@ -135,51 +120,55 @@ class Duck extends Character {
     return this.tween;
   }
 
-  getCenterPoint() {
-    let point = {
-      x: this.position.x + this.width / 2,
-      y: this.position.y + this.height / 2
-    };
-
-    return point;
+  stop() {
+    if (this.tween) {
+      this.tween.stop();
+    }
   }
 
-  setFlightSpeed(speed) {
-    switch (speed) {
+  get speed() {
+    return this.speedLevel;
+  }
+
+  set speed(val) {
+    let flightAnimationMs;
+    switch (val) {
       case 0:
-        this.flightSpeed = 3000;
+        flightAnimationMs = 3000;
         break;
       case 1:
-        this.flightSpeed = 2800;
+        flightAnimationMs = 2800;
         break;
       case 2:
-        this.flightSpeed = 2500;
+        flightAnimationMs = 2500;
         break;
       case 3:
-        this.flightSpeed = 2000;
+        flightAnimationMs = 2000;
         break;
       case 4:
-        this.flightSpeed = 1800;
+        flightAnimationMs = 1800;
         break;
       case 5:
-        this.flightSpeed = 1500;
+        flightAnimationMs = 1500;
         break;
       case 6:
-        this.flightSpeed = 1300;
+        flightAnimationMs = 1300;
         break;
       case 7:
-        this.flightSpeed = 1200;
+        flightAnimationMs = 1200;
         break;
       case 8:
-        this.flightSpeed = 800;
+        flightAnimationMs = 800;
         break;
       case 9:
-        this.flightSpeed = 600;
+        flightAnimationMs = 600;
         break;
       case 10:
-        this.flightSpeed = 500;
+        flightAnimationMs = 500;
         break;
     }
+    this.speedLevel = val;
+    this.flightSpeed = flightAnimationMs;
   }
 }
 
