@@ -23,20 +23,74 @@ class Game {
     this.waveEnding = false;
     this.waveOver = false;
     this.levels = levels.normal;
-    this.score = 0;
     return this;
   }
 
+  get score() {
+    return this.scoreVal ? this.scoreVal : 0;
+  }
+
+  set score(val) {
+    this.scoreVal = val;
+
+    if (this.stage && this.stage.hud) {
+
+      if (!this.stage.hud.hasOwnProperty('score')) {
+        this.stage.hud.createTextBox('score', {
+          font: '18px Arial',
+          align: 'left',
+          fill: 'white'
+        }, Stage.scoreBoxLocation());
+      }
+
+      this.stage.hud.score = val;
+    }
+
+  }
+
   get wave() {
-    return this.waveNum;
+    return this.waveVal ? this.waveVal : 0;
   }
 
   set wave(val) {
-    this.waveNum = val;
-    if (!isNaN(val) && val > 0) {
-      this.hud.waveStatus = 'Wave ' + val + ' of ' + this.level.waves;
-    } else {
-      this.hud.waveStatus = '';
+    this.waveVal = val;
+
+    if (this.stage && this.stage.hud) {
+
+      if (!this.stage.hud.hasOwnProperty('waveStatus')) {
+        this.stage.hud.createTextBox('waveStatus', {
+          font: '18px Arial',
+          align: 'left',
+          fill: 'white'
+        }, Stage.waveStatusBoxLocation());
+      }
+
+      if (!isNaN(val) && val > 0) {
+        this.stage.hud.waveStatus = 'Wave ' + val + ' of ' + this.level.waves;
+      }else {
+        this.stage.hud.waveStatus = '';
+      }
+    }
+  }
+
+  get gameStatus () {
+    return this.gameStatusVal ? this.gameStatusVal : '';
+  }
+
+  set gameStatus(val) {
+    this.gameStatusVal = val;
+
+    if (this.stage && this.stage.hud) {
+
+      if (!this.stage.hud.hasOwnProperty('gameStatus')) {
+        this.stage.hud.createTextBox('gameStatus', {
+          font: '40px Arial',
+          align: 'left',
+          fill: 'white'
+        }, Stage.gameStatusBoxLocation());
+      }
+
+      this.stage.hud.gameStatus = val;
     }
   }
 
@@ -53,33 +107,10 @@ class Game {
       sprites: this.spritesheet
     });
 
-    this.setupHud();
-    this.bindEvents();
     this.scaleToWindow();
+    this.bindEvents();
     this.startLevel();
     this.animate();
-  }
-
-  setupHud() {
-    this.hud = this.stage.addChild(new Hud());
-
-    this.hud.createTextBox('score', {
-      font: '18px Arial',
-      align: 'center',
-      fill: 'white'
-    }, this.stage.scoreBoxLocation);
-
-    this.hud.createTextBox('waveStatus', {
-      font: '18px Arial',
-      align: 'left',
-      fill: 'white'
-    }, this.stage.waveStatusBoxLocation);
-
-    this.hud.createTextBox('gameStatus', {
-      font: '40px Arial',
-      align: 'left',
-      fill: 'white'
-    }, this.stage.gameStatusBoxLocation);
   }
 
   bindEvents() {
@@ -98,9 +129,9 @@ class Game {
     this.ducksShotThisLevel = 0;
     this.wave = 0;
 
-    this.hud.gameStatus = this.level.title;
+    this.gameStatus = this.level.title;
     this.stage.preLevelAnimation().then(function() {
-      _this.hud.gameStatus = '';
+      _this.gameStatus = '';
       _this.stage.mousedown = _this.stage.touchstart = _this.handleClick.bind(_this);
       _this.startWave();
     });
@@ -167,12 +198,12 @@ class Game {
   }
 
   win() {
-    this.hud.gameStatus = 'You Win!';
+    this.gameStatus = 'You Win!';
     this.stage.victoryScreen();
   }
 
   loss() {
-    this.hud.gameStatus = 'You Lose!';
+    this.gameStatus = 'You Lose!';
     this.stage.loserScreen();
   }
 
@@ -189,7 +220,6 @@ class Game {
   updateScore(ducksShot) {
     this.ducksShotThisLevel += ducksShot;
     this.score += ducksShot * this.level.pointsPerDuck;
-    this.hud.score = this.score;
   }
 
   animate(time) {

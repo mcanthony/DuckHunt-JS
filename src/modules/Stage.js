@@ -11,6 +11,11 @@ import Hud from './Hud';
 const sound = new Howl(audioSpriteSheet);
 const MAX_X = 800;
 const MAX_Y = 600;
+const HUD_TEXT_BOX_LOCATIONS = {
+  SCORE: new PIXI.Point(MAX_X - 105, 20),
+  WAVE_STATUS: new PIXI.Point(60, MAX_Y * 0.97 - 10),
+  GAME_STATUS: new PIXI.Point(MAX_X / 2, MAX_Y * 0.45)
+};
 
 Howler.Howler.mute();
 
@@ -24,13 +29,22 @@ class Stage extends PIXI.Container {
     this.duckOrigin = new PIXI.Point(MAX_X / 2, MAX_Y);
     this.dog = new Dog(this.spritesheet);
     this.dog.visible = false;
-
-    this.scoreBoxLocation = new PIXI.Point(MAX_X - 45, 20);
-    this.waveStatusBoxLocation = new PIXI.Point(60, MAX_Y * 0.97 - 10);
-    this.gameStatusBoxLocation = new PIXI.Point(MAX_X / 2, MAX_Y * 0.45);
+    this.hud = new Hud();
 
     this._setStage();
     this.scaleToWindow();
+  }
+
+  static scoreBoxLocation() {
+    return HUD_TEXT_BOX_LOCATIONS.SCORE;
+  }
+
+  static waveStatusBoxLocation() {
+    return HUD_TEXT_BOX_LOCATIONS.WAVE_STATUS;
+  }
+
+  static gameStatusBoxLocation() {
+    return HUD_TEXT_BOX_LOCATIONS.GAME_STATUS;
   }
 
   getCenterPoint() {
@@ -51,12 +65,13 @@ class Stage extends PIXI.Container {
     this.addChild(tree);
     this.addChild(background);
     this.addChild(this.dog);
+    this.addChild(this.hud);
 
     return this;
   }
 
   preLevelAnimation() {
-    this.ducks = [];
+    this.cleanUpDucks();
     return this.dog.levelIntro();
   }
 
@@ -120,6 +135,7 @@ class Stage extends PIXI.Container {
     for (let i = 0; i < this.ducks.length; i++) {
       this.removeChild(this.ducks[i]);
     }
+    this.ducks = [];
   }
 
   ducksAlive() {

@@ -10,8 +10,8 @@ const sound = new Howl(audioSpriteSheet);
 const DEATH_ANIMATION_SPEED = 600;
 
 class Duck extends Character {
-  constructor(color, spritesheet) {
-    let spriteId = 'duck/' + color;
+  constructor(colorProfile, spritesheet) {
+    let spriteId = 'duck/' + colorProfile;
     let states = [
       {
         name: 'left',
@@ -70,11 +70,12 @@ class Duck extends Character {
 
     this.play();
     let _this = this;
-    this.flyTo(destination, options.speed).onComplete(function() {
-      if (_this.alive) {
-        _this.freeFlight(options);
-      }
-    });
+    this.flyTo(destination, options.speed)
+      .onComplete(function() {
+        if (_this.alive) {
+          _this.freeFlight(options);
+        }
+      });
   }
 
   flyTo(point, speed) {
@@ -86,7 +87,7 @@ class Duck extends Character {
     this.setState(direction.replace('bottom', 'top'));
     let _this = this;
     this.tween = new TWEEN.Tween(this.position)
-      .to(point, this.flightSpeed + _random(0, 300))
+      .to(point, this.flightSpeed + _random(0, 300)) // stagger so all ducks don't move in sync
       .onUpdate(function() {
         _this.setPosition(parseInt(this.x), parseInt(this.y));
       })
